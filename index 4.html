@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ascend</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #root { width: 100vw; height: 100vh; overflow: hidden; }
+
+        /* Main Container */
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at 50% 50%, rgba(88, 28, 135, 0.05) 0%, #000 100%);
+        }
+
+        /* Main Button */
+        .main-button {
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(168, 85, 247, 0.3), rgba(88, 28, 135, 0.5));
+            border: 2px solid rgba(168, 85, 247, 0.4);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .main-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(168, 85, 247, 0.1), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .main-button:hover {
+            border-color: rgba(168, 85, 247, 0.6);
+            background: radial-gradient(circle at 40% 40%, rgba(168, 85, 247, 0.4), rgba(88, 28, 135, 0.6));
+            transform: scale(1.05);
+        }
+
+        .main-button:hover::before {
+            opacity: 1;
+        }
+
+        .main-button:active {
+            transform: scale(0.98);
+        }
+
+        .points-display {
+            text-align: center;
+        }
+
+        .points-number {
+            font-size: 56px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            color: #a855f7;
+        }
+
+        .points-label {
+            font-size: 12px;
+            letter-spacing: 2px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .click-text {
+            font-size: 12px;
+            color: #6b7280;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Tree Button (toggle) */
+        .tree-toggle {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(88, 28, 135, 0.6);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .tree-toggle:hover {
+            background: rgba(88, 28, 135, 0.8);
+            border-color: rgba(168, 85, 247, 0.6);
+        }
+
+        .tree-icon {
+            font-size: 24px;
+        }
+
+        /* Draggable Panel */
+        .tree-panel {
+            position: fixed;
+            bottom: 120px;
+            right: 40px;
+            width: 420px;
+            max-height: 70vh;
+            background: rgba(15, 15, 15, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            cursor: grab;
+        }
+
+        .tree-panel.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+            cursor: grab;
+        }
+
+        .tree-panel.dragging {
+            cursor: grabbing;
+        }
+
+        /* Header */
+        .tree-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+        }
+
+        .tree-header:active {
+            cursor: grabbing;
+        }
+
+        .tree-title {
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #d1d5db;
+            font-weight: 500;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 20px;
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: #9ca3af;
+        }
+
+        /* Skills Grid */
+        .skills-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .skills-container::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .skills-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .skills-container::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.3);
+            border-radius: 2px;
+        }
+
+        /* Skill Circle */
+        .skill-circle {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .skill-circle.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .skill-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(88, 28, 135, 0.3);
+            border: 2px solid rgba(168, 85, 247, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .skill-circle:hover:not(.locked) .skill-inner {
+            background: rgba(88, 28, 135, 0.5);
+            border-color: rgba(168, 85, 247, 0.5);
+        }
+
+        /* Progress Ring */
+        .progress-ring {
+            position: absolute;
+            inset: 0;
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.4s ease;
+            stroke: url(#gradient-purple);
+        }
+
+        /* Skill Content */
+        .skill-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .skill-name {
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #d1d5db;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .skill-level {
+            font-size: 18px;
+            font-weight: 300;
+            color: #a855f7;
+            margin-top: 4px;
+        }
+
+        .skill-cost {
+            font-size: 9px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .skill-locked::after {
+            content: '🔒';
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            font-size: 12px;
+            z-index: 3;
+        }
+
+        /* Upgrade Hint */
+        .upgrade-hint {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.2), transparent);
+            opacity: 0;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.5; }
+        }
+
+        .skill-circle:hover:not(.locked) .upgrade-hint {
+            animation: none;
+            opacity: 0.3;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .tree-panel {
+                width: 90vw;
+                max-height: 60vh;
+                right: 5vw;
+                bottom: 70px;
+            }
+
+            .tree-toggle {
+                width: 50px;
+                height: 50px;
+                bottom: 20px;
+                right: 20px;
+            }
+
+            .main-button {
+                width: 200px;
+                height: 200px;
+            }
+
+            .points-number {
+                font-size: 48px;
+            }
+
+            .skills-container {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+
+    <script>
+        const { useState, useEffect, useRef } = React;
+
+        function SkillTree() {
+            const skillsData = {
+                strength: { name: 'Strength', cost: 10, tier: 1, requires: [] },
+                dexterity: { name: 'Dexterity', cost: 10, tier: 1, requires: [] },
+                intelligence: { name: 'Intelligence', cost: 10, tier: 1, requires: [] },
+                
+                swordmastery: { name: 'Sword\nMastery', cost: 15, tier: 2, requires: ['strength'] },
+                archery: { name: 'Archery', cost: 15, tier: 2, requires: ['dexterity'] },
+                magic: { name: 'Magic', cost: 15, tier: 2, requires: ['intelligence'] },
+                
+                weaponsmith: { name: 'Weapon\nsmith', cost: 25, tier: 3, requires: ['swordmastery'] },
+                shadowstrike: { name: 'Shadow\nStrike', cost: 25, tier: 3, requires: ['archery', 'dexterity'] },
+                pyromancy: { name: 'Pyro\nmancy', cost: 30, tier: 3, requires: ['magic'] },
+                cryomancy: { name: 'Cryo\nmancy', cost: 30, tier: 3, requires: ['magic'] },
+                
+                berserker: { name: 'Ber\nserker', cost: 40, tier: 4, requires: ['strength', 'weaponsmith'] },
+                assassin: { name: 'Assa\nsin', cost: 40, tier: 4, requires: ['shadowstrike', 'dexterity'] },
+                spellweaver: { name: 'Spell\nweaver', cost: 45, tier: 4, requires: ['pyromancy', 'cryomancy'] },
+                
+                apotheosis: { name: 'Apo\ntheosis', cost: 100, tier: 5, requires: ['berserker', 'assassin', 'spellweaver'] },
+            };
+
+            const [skills, setSkills] = useState(() => {
+                const initial = {};
+                Object.keys(skillsData).forEach(key => {
+                    initial[key] = { level: 0, cost: skillsData[key].cost };
+                });
+                return initial;
+            });
+
+            const [points, setPoints] = useState(0);
+            const [panelOpen, setPanelOpen] = useState(false);
+            const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
+            const [isDragging, setIsDragging] = useState(false);
+            const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+            const panelRef = useRef(null);
+
+            const canUpgrade = (skillName) => {
+                const skill = skills[skillName];
+                if (points < skill.cost) return false;
+                const reqs = skillsData[skillName].requires;
+                return reqs.length === 0 || reqs.every(req => skills[req].level > 0);
+            };
+
+            const isLocked = (skillName) => {
+                const reqs = skillsData[skillName].requires;
+                return reqs.length > 0 && !reqs.every(req => skills[req].level > 0);
+            };
+
+            const upgrade = (skillName) => {
+                if (!canUpgrade(skillName)) return;
+                const currentCost = skills[skillName].cost;
+                setSkills(prev => ({
+                    ...prev,
+                    [skillName]: {
+                        ...prev[skillName],
+                        level: prev[skillName].level + 1,
+                        cost: Math.floor(currentCost * 1.15)
+                    }
+                }));
+                setPoints(prev => prev - currentCost);
+            };
+
+            const handleMouseDown = (e) => {
+                if (panelRef.current && panelRef.current.contains(e.target)) {
+                    const rect = panelRef.current.getBoundingClientRect();
+                    setIsDragging(true);
+                    setDragOffset({
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    });
+                }
+            };
+
+            const handleMouseMove = (e) => {
+                if (isDragging && panelRef.current) {
+                    setPanelPos({
+                        x: e.clientX - dragOffset.x,
+                        y: e.clientY - dragOffset.y
+                    });
+                }
+            };
+
+            const handleMouseUp = () => {
+                setIsDragging(false);
+            };
+
+            useEffect(() => {
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+                return () => {
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                };
+            }, [isDragging, dragOffset]);
+
+            const sortedSkills = Object.entries(skills)
+                .sort(([a], [b]) => {
+                    const tierA = skillsData[a].tier;
+                    const tierB = skillsData[b].tier;
+                    return tierA - tierB;
+                });
+
+            const circumference = 2 * Math.PI * 38;
+
+            return React.createElement(
+                'div',
+                { style: { width: '100%', height: '100%' } },
+                
+                // SVG Gradient Defs
+                React.createElement('svg', { style: { display: 'none' } },
+                    React.createElement('defs', null,
+                        React.createElement('linearGradient', { id: 'gradient-purple', x1: '0%', y1: '0%', x2: '100%', y2: '100%' },
+                            React.createElement('stop', { offset: '0%', stopColor: '#a855f7' }),
+                            React.createElement('stop', { offset: '100%', stopColor: '#7c3aed' })
+                        )
+                    )
+                ),
+
+                // Main Container
+                React.createElement(
+                    'div',
+                    { className: 'container' },
+                    
+                    // Main Button
+                    React.createElement(
+                        'button',
+                        {
+                            className: 'main-button',
+                            onClick: () => setPoints(prev => prev + 10)
+                        },
+                        React.createElement('div', { className: 'points-display' },
+                            React.createElement('div', { className: 'points-number' }, points),
+                            React.createElement('div', { className: 'points-label' }, 'Points')
+                        ),
+                        React.createElement('div', { className: 'click-text' }, 'CLICK TO ASCEND')
+                    )
+                ),
+
+                // Tree Toggle Button
+                React.createElement(
+                    'button',
+                    {
+                        className: 'tree-toggle',
+                        onClick: () => setPanelOpen(!panelOpen),
+                        title: panelOpen ? 'Close Tree' : 'Open Tree'
+                    },
+                    React.createElement('span', { className: 'tree-icon' }, '🌳')
+                ),
+
+                // Tree Panel
+                React.createElement(
+                    'div',
+                    {
+                        ref: panelRef,
+                        className: `tree-panel ${panelOpen ? 'active' : ''} ${isDragging ? 'dragging' : ''}`,
+                        style: {
+                            transform: `translate(${panelPos.x}px, ${panelPos.y}px)`
+                        },
+                        onMouseDown: handleMouseDown
+                    },
+
+                    // Header
+                    React.createElement(
+                        'div',
+                        { className: 'tree-header' },
+                        React.createElement('div', { className: 'tree-title' }, 'Skill Tree'),
+                        React.createElement(
+                            'button',
+                            {
+                                className: 'close-btn',
+                                onClick: () => setPanelOpen(false)
+                            },
+                            '✕'
+                        )
+                    ),
+
+                    // Skills Grid
+                    React.createElement(
+                        'div',
+                        { className: 'skills-container' },
+                        sortedSkills.map(([skillName, skillLvl]) => {
+                            const skillInfo = skillsData[skillName];
+                            const locked = isLocked(skillName);
+                            const canUp = canUpgrade(skillName);
+                            const maxLevel = 10;
+                            const progress = (skillLvl.level / maxLevel) * circumference;
+
+                            return React.createElement(
+                                'button',
+                                {
+                                    key: skillName,
+                                    className: `skill-circle ${locked ? 'locked' : ''}`,
+                                    onClick: () => canUp && upgrade(skillName),
+                                    disabled: locked || !canUp,
+                                    style: { border: 'none', background: 'none', cursor: locked || !canUp ? 'not-allowed' : 'pointer', padding: 0 }
+                                },
+                                React.createElement('svg', { className: 'progress-ring', viewBox: '0 0 100 100' },
+                                    React.createElement('circle', {
+                                        cx: '50',
+                                        cy: '50',
+                                        r: '38',
+                                        stroke: 'rgba(168, 85, 247, 0.1)',
+                                        strokeWidth: '2',
+                                        fill: 'none'
+                                    }),
+                                    React.createElement('circle', {
+                                        className: 'progress-ring-circle',
+                                        cx: '50',
+                                        cy: '50',
+                                        r: '38',
+                                        strokeWidth: '2',
+                                        fill: 'none',
+                                        strokeDasharray: circumference,
+                                        strokeDashoffset: circumference - progress,
+                                        strokeLinecap: 'round'
+                                    })
+                                ),
+                                React.createElement('div', { className: 'skill-inner' },
+                                    React.createElement('div', { className: 'skill-content' },
+                                        React.createElement('div', { className: 'skill-name' }, skillInfo.name),
+                                        React.createElement('div', { className: 'skill-level' }, skillLvl.level),
+                                        React.createElement('div', { className: 'skill-cost' }, skillLvl.cost)
+                                    ),
+                                    locked && React.createElement('div', { className: 'skill-locked' }),
+                                    !locked && React.createElement('div', { className: 'upgrade-hint' })
+                                )
+                            );
+                        })
+                    )
+                )
+            );
+        }
+
+        setTimeout(() => {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(React.createElement(SkillTree));
+        }, 100);
+    </script>
+</body>
+</html>
