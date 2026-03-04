@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Tree - Ascend Through Infinite Progression</title>
+    <script defer src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000000;
+            color: #d1d5db;
+        }
+        #root {
+            width: 100%;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <script>
+        const { useState, createElement: h } = React;
+
+        function SkillTreeGame() {
+            const initialSkills = {
+                strength: { level: 0, cost: 10, description: 'Physical power' },
+                dexterity: { level: 0, cost: 10, description: 'Agility' },
+                intelligence: { level: 0, cost: 10, description: 'Mental acuity' },
+                
+                swordmastery: { level: 0, cost: 15, description: 'Melee combat', requires: ['strength'] },
+                archery: { level: 0, cost: 15, description: 'Ranged combat', requires: ['dexterity'] },
+                magic: { level: 0, cost: 15, description: 'Spellcasting', requires: ['intelligence'] },
+                
+                weaponsmith: { level: 0, cost: 25, description: 'Forge weapons', requires: ['swordmastery'] },
+                shadowstrike: { level: 0, cost: 25, description: 'Stealth attacks', requires: ['archery', 'dexterity'] },
+                pyromancy: { level: 0, cost: 30, description: 'Fire magic', requires: ['magic'] },
+                cryomancy: { level: 0, cost: 30, description: 'Ice magic', requires: ['magic'] },
+                
+                berserker: { level: 0, cost: 40, description: 'Rage mode', requires: ['strength', 'weaponsmith'] },
+                assassin: { level: 0, cost: 40, description: 'Ultimate stealth', requires: ['shadowstrike', 'dexterity'] },
+                spellweaver: { level: 0, cost: 45, description: 'Combine spells', requires: ['pyromancy', 'cryomancy'] },
+                
+                apotheosis: { level: 0, cost: 100, description: 'Ultimate power', requires: ['berserker', 'assassin', 'spellweaver'] },
+            };
+
+            const [skills, setSkills] = useState(initialSkills);
+            const [points, setPoints] = useState(0);
+            const [totalSpent, setTotalSpent] = useState(0);
+
+            const canUpgrade = (skillName) => {
+                const skill = skills[skillName];
+                if (points < skill.cost) return false;
+                if (skill.requires) {
+                    return skill.requires.every(req => skills[req].level > 0);
+                }
+                return true;
+            };
+
+            const upgrade = (skillName) => {
+                if (!canUpgrade(skillName)) return;
+                const skill = skills[skillName];
+                setSkills(prev => ({
+                    ...prev,
+                    [skillName]: {
+                        ...prev[skillName],
+                        level: prev[skillName].level + 1,
+                        cost: Math.floor(prev[skillName].cost * 1.15)
+                    }
+                }));
+                setPoints(prev => prev - skill.cost);
+                setTotalSpent(prev => prev + skill.cost);
+            };
+
+            const downgrade = (skillName) => {
+                const skill = skills[skillName];
+                if (skill.level === 0) return;
+                const originalCost = Math.floor(skill.cost / 1.15);
+                setSkills(prev => ({
+                    ...prev,
+                    [skillName]: {
+                        ...prev[skillName],
+                        level: prev[skillName].level - 1,
+                        cost: originalCost
+                    }
+                }));
+                setPoints(prev => prev + originalCost);
+                setTotalSpent(prev => prev - originalCost);
+            };
+
+            const reset = () => {
+                setSkills(initialSkills);
+                setPoints(0);
+                setTotalSpent(0);
+            };
+
+            const addPoints = () => setPoints(prev => prev + 100);
+
+            return h('div', { style: { minHeight: '100vh', backgroundColor: '#000', color: '#d1d5db' } },
+                // Header
+                h('div', { style: { borderBottom: '1px solid #1f2937', backgroundColor: '#0f0f0f', padding: '24px' } },
+                    h('div', { style: { maxWidth: '80rem', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+                        h('div', null,
+                            h('h1', { style: { fontSize: '30px', fontWeight: 'bold', color: '#f3f4f6', marginBottom: '8px', letterSpacing: '0.05em' } }, 'SKILL TREE'),
+                            h('p', { style: { fontSize: '14px', color: '#6b7280' } }, 'Ascend through infinite progression')
+                        ),
+                        h('div', { style: { textAlign: 'right' } },
+                            h('div', { style: { marginBottom: '12px' } },
+                                h('div', { style: { fontSize: '36px', fontWeight: 'bold', color: '#a78bfa', letterSpacing: '0.1em' } }, points),
+                                h('p', { style: { fontSize: '12px', color: '#6b7280', marginTop: '4px' } }, 'POINTS')
+                            ),
+                            h('div', { style: { fontSize: '12px', color: '#4b5563' } }, `Spent: ${totalSpent}`)
+                        )
+                    )
+                ),
+
+                // Controls
+                h('div', { style: { backgroundColor: '#111827', padding: '16px 24px', borderBottom: '1px solid #1f2937', position: 'sticky', top: 0, zIndex: 10 } },
+                    h('div', { style: { maxWidth: '80rem', margin: '0 auto', display: 'flex', gap: '12px' } },
+                        h('button', {
+                            onClick: addPoints,
+                            style: {
+                                padding: '8px 16px',
+                                backgroundColor: '#6b21a8',
+                                color: '#e9d5ff',
+                                fontSize: '14px',
+                                fontFamily: 'monospace',
+                                border: '1px solid #9333ea',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.2s'
+                            },
+                            onMouseEnter: (e) => e.target.style.backgroundColor = '#7c3aed',
+                            onMouseLeave: (e) => e.target.style.backgroundColor = '#6b21a8'
+                        }, '+ 100 POINTS'),
+                        h('button', {
+                            onClick: reset,
+                            style: {
+                                padding: '8px 16px',
+                                backgroundColor: '#1f2937',
+                                color: '#d1d5db',
+                                fontSize: '14px',
+                                fontFamily: 'monospace',
+                                border: '1px solid #374151',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.2s'
+                            },
+                            onMouseEnter: (e) => e.target.style.backgroundColor = '#111827',
+                            onMouseLeave: (e) => e.target.style.backgroundColor = '#1f2937'
+                        }, '⟲ RESET')
+                    )
+                ),
+
+                // Skill Tree Grid
+                h('div', { style: { padding: '32px 24px' } },
+                    h('div', { style: { maxWidth: '80rem', margin: '0 auto' } },
+                        h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' } },
+                            Object.entries(skills).map(([skillName, skill]) =>
+                                h('div', {
+                                    key: skillName,
+                                    style: {
+                                        opacity: skill.requires && !skill.requires.every(req => skills[req].level > 0) ? 0.5 : 1,
+                                        transition: 'opacity 0.2s'
+                                    }
+                                },
+                                    h('div', {
+                                        style: {
+                                            backgroundColor: '#111827',
+                                            border: '1px solid #374151',
+                                            padding: '16px',
+                                            transition: 'border-color 0.2s'
+                                        },
+                                        onMouseEnter: (e) => e.currentTarget.style.borderColor = '#a855f7',
+                                        onMouseLeave: (e) => e.currentTarget.style.borderColor = '#374151'
+                                    },
+                                        // Skill Header
+                                        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' } },
+                                            h('div', { style: { flex: 1 } },
+                                                h('h3', { style: { fontSize: '14px', fontWeight: 'bold', color: '#f3f4f6', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' } }, skillName),
+                                                h('p', { style: { fontSize: '12px', color: '#6b7280' } }, skill.description)
+                                            ),
+                                            h('div', { style: { marginLeft: '16px', textAlign: 'right' } },
+                                                h('div', { style: { fontSize: '18px', fontWeight: 'bold', color: '#a78bfa' } }, skill.level),
+                                                h('p', { style: { fontSize: '12px', color: '#4b5563' } }, 'LVL')
+                                            )
+                                        ),
+
+                                        // Requirements
+                                        skill.requires && h('div', { style: { marginBottom: '12px', paddingBottom: '12px', borderTop: '1px solid #374151' } },
+                                            h('p', { style: { fontSize: '12px', color: '#4b5563', marginBottom: '4px' } }, 'REQUIRES:'),
+                                            h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px' } },
+                                                skill.requires.map(req =>
+                                                    h('span', {
+                                                        key: req,
+                                                        style: {
+                                                            fontSize: '12px',
+                                                            padding: '4px 8px',
+                                                            border: `1px solid ${skills[req].level > 0 ? '#9333ea' : '#4b5563'}`,
+                                                            backgroundColor: skills[req].level > 0 ? '#581c87' : '#1f2937',
+                                                            color: skills[req].level > 0 ? '#d8b4fe' : '#6b7280'
+                                                        }
+                                                    }, req)
+                                                )
+                                            )
+                                        ),
+
+                                        // Cost and Controls
+                                        h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #374151' } },
+                                            h('div', { style: { fontSize: '14px' } },
+                                                h('span', { style: { color: skill.level > 0 ? '#6b7280' : 'inherit' } },
+                                                    'Cost: ',
+                                                    h('span', { style: { fontWeight: 'bold', color: '#d1d5db' } }, skill.cost)
+                                                )
+                                            ),
+                                            h('div', { style: { display: 'flex', gap: '8px' } },
+                                                h('button', {
+                                                    onClick: () => downgrade(skillName),
+                                                    disabled: skill.level === 0,
+                                                    style: {
+                                                        width: '32px',
+                                                        height: '32px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        backgroundColor: skill.level === 0 ? '#0f0f0f' : '#1f2937',
+                                                        color: skill.level === 0 ? '#4b5563' : '#9ca3af',
+                                                        border: '1px solid #374151',
+                                                        cursor: skill.level === 0 ? 'not-allowed' : 'pointer',
+                                                        transition: 'all 0.2s'
+                                                    },
+                                                    onMouseEnter: (e) => skill.level > 0 && (e.target.style.backgroundColor = '#111827'),
+                                                    onMouseLeave: (e) => skill.level > 0 && (e.target.style.backgroundColor = '#1f2937')
+                                                }, '−'),
+                                                h('button', {
+                                                    onClick: () => upgrade(skillName),
+                                                    disabled: !canUpgrade(skillName),
+                                                    style: {
+                                                        width: '32px',
+                                                        height: '32px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        backgroundColor: canUpgrade(skillName) ? '#6b21a8' : '#0f0f0f',
+                                                        color: canUpgrade(skillName) ? '#e9d5ff' : '#4b5563',
+                                                        border: `1px solid ${canUpgrade(skillName) ? '#9333ea' : '#1f2937'}`,
+                                                        cursor: canUpgrade(skillName) ? 'pointer' : 'not-allowed',
+                                                        transition: 'all 0.2s'
+                                                    },
+                                                    onMouseEnter: (e) => canUpgrade(skillName) && (e.target.style.backgroundColor = '#7c3aed'),
+                                                    onMouseLeave: (e) => canUpgrade(skillName) && (e.target.style.backgroundColor = '#6b21a8')
+                                                }, '+')
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                // Footer
+                h('div', { style: { borderTop: '1px solid #1f2937', backgroundColor: '#0f0f0f', padding: '24px', marginTop: '32px' } },
+                    h('div', { style: { maxWidth: '80rem', margin: '0 auto' } },
+                        h('p', { style: { fontSize: '12px', color: '#4b5563' } }, 'Unlock skills by meeting their requirements. Costs increase with each level. Reach the apex.')
+                    )
+                )
+            );
+        }
+
+        // Wait for DOM to be ready
+        setTimeout(() => {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(React.createElement(SkillTreeGame));
+        }, 100);
+    </script>
+</body>
+</html>
