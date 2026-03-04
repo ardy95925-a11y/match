@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cave Miner - Extraction Protocol</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+    <style>
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        #root {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { ChevronLeft, Zap, Coins } = lucide;
+
+        function CaveMinerGame() {
+            const [gameState, setGameState] = useState('home');
+            const [resources, setResources] = useState({ ore: 0, crystal: 0, gold: 0 });
+            const [coins, setCoins] = useState(0);
+            const [grenades, setGrenades] = useState(3);
+            const [maxGrenades, setMaxGrenades] = useState(3);
+            const [rechargeTime, setRechargeTime] = useState(5);
+            const [maxRechargeTime, setMaxRechargeTime] = useState(5);
+            const [nextRechargeIn, setNextRechargeIn] = useState(0);
+            const [explosions, setExplosions] = useState([]);
+            const [gameMessage, setGameMessage] = useState('');
+            const [skills, setSkills] = useState({
+                resourceBoost: 0,
+                rechargeSpeed: 0,
+                grenadeCapacity: 0,
+                multiplier: 0,
+            });
+
+            const skillPrices = {
+                resourceBoost: 50 + skills.resourceBoost * 75,
+                rechargeSpeed: 75 + skills.rechargeSpeed * 100,
+                grenadeCapacity: 100 + skills.grenadeCapacity * 150,
+                multiplier: 150 + skills.multiplier * 200,
+            };
+
+            useEffect(() => {
+                if (grenades >= maxGrenades || gameState !== 'game') return;
+
+                const interval = setInterval(() => {
+                    setNextRechargeIn((prev) => {
+                        if (prev <= 1) {
+                            setGrenades((g) => Math.min(g + 1, maxGrenades));
+                            return rechargeTime;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+
+                return () => clearInterval(interval);
+            }, [grenades, maxGrenades, rechargeTime, gameState]);
+
+            const throwGrenade = () => {
+                if (grenades === 0) return;
+
+                setGrenades((g) => g - 1);
+                setNextRechargeIn(rechargeTime);
+
+                const baseResources = {
+                    ore: Math.floor((10 + skills.resourceBoost * 5) * (1 + skills.multiplier * 0.2)),
+                    crystal: Math.floor((5 + skills.resourceBoost * 3) * (1 + skills.multiplier * 0.2)),
+                    gold: Math.floor((2 + skills.resourceBoost * 1) * (1 + skills.multiplier * 0.2)),
+                };
+
+                const explosionId = Math.random();
+                setExplosions((prev) => [
+                    ...prev,
+                    {
+                        id: explosionId,
+                        x: Math.random() * 80 + 10,
+                        y: Math.random() * 30 + 35,
+                    },
+                ]);
+
+                setTimeout(() => {
+                    setExplosions((prev) => prev.filter((e) => e.id !== explosionId));
+                }, 600);
+
+                setResources((prev) => ({
+                    ore: prev.ore + baseResources.ore,
+                    crystal: prev.crystal + baseResources.crystal,
+                    gold: prev.gold + baseResources.gold,
+                }));
+
+                setGameMessage('💥 Resources collected!');
+                setTimeout(() => setGameMessage(''), 2000);
+            };
+
+            const sellResources = () => {
+                const value = resources.ore * 10 + resources.crystal * 50 + resources.gold * 200;
+                setCoins((c) => c + value);
+                setResources({ ore: 0, crystal: 0, gold: 0 });
+                setGameMessage('✓ Resources sold!');
+                setTimeout(() => setGameMessage(''), 2000);
+            };
+
+            const purchaseSkill = (skillKey) => {
+                const price = skillPrices[skillKey];
+                if (coins < price) return;
+
+                setCoins((c) => c - price);
+                setSkills((prev) => ({
+                    ...prev,
+                    [skillKey]: prev[skillKey] + 1,
+                }));
+
+                if (skillKey === 'grenadeCapacity') {
+                    setMaxGrenades((m) => m + 1);
+                    setGrenades((g) => g + 1);
+                }
+                if (skillKey === 'rechargeSpeed') {
+                    setMaxRechargeTime((m) => Math.max(m - 1, 1));
+                    setRechargeTime((m) => Math.max(m - 1, 1));
+                }
+
+                setGameMessage('✓ Upgrade purchased!');
+                setTimeout(() => setGameMessage(''), 2000);
+            };
+
+            // HOME SCREEN
+            if (gameState === 'home') {
+                return (
+                    <div className="w-full h-screen bg-stone-950 flex items-center justify-center p-6">
+                        <div className="max-w-md w-full text-center">
+                            <div className="mb-8">
+                                <div className="text-6xl mb-4">⛏️</div>
+                                <h1 className="text-4xl font-light text-stone-100 tracking-tight mb-2">
+                                    CAVE MINER
+                                </h1>
+                                <p className="text-stone-400 text-sm uppercase tracking-widest">
+                                    Extractor Protocol
+                                </p>
+                            </div>
+
+                            <div className="space-y-4 my-12">
+                                <div className="text-stone-300 text-sm leading-relaxed">
+                                    Extract resources from the deep. Build your operation. Upgrade your arsenal.
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    setGameState('game');
+                                    setGameMessage('');
+                                }}
+                                className="w-full bg-stone-100 text-stone-950 py-3 px-6 font-medium uppercase tracking-wider text-sm hover:bg-stone-50 transition-colors"
+                            >
+                                Start Operation
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // GAME SCREEN
+            if (gameState === 'game') {
+                return (
+                    <div className="w-full h-screen bg-stone-950 flex flex-col">
+                        <div className="bg-stone-900 border-b border-stone-800 p-4">
+                            <div className="max-w-4xl mx-auto flex items-center justify-between">
+                                <button
+                                    onClick={() => setGameState('home')}
+                                    className="text-stone-400 hover:text-stone-200 transition"
+                                >
+                                    <ChevronLeft size={24} />
+                                </button>
+                                <div className="text-center flex-1">
+                                    <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">
+                                        Credits
+                                    </p>
+                                    <p className="text-stone-100 text-2xl font-light">${coins}</p>
+                                </div>
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={() => setGameState('shop')}
+                                        className="text-stone-400 hover:text-stone-100 transition"
+                                    >
+                                        <Coins size={24} />
+                                    </button>
+                                    <button
+                                        onClick={() => setGameState('skills')}
+                                        className="text-stone-400 hover:text-stone-100 transition"
+                                    >
+                                        <Zap size={24} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+                            <div className="absolute inset-0 opacity-30">
+                                <div className="absolute inset-0 bg-gradient-to-b from-stone-800 via-stone-900 to-stone-950" />
+                            </div>
+
+                            <div className="relative z-10 flex flex-col items-center">
+                                <div className="mb-8">
+                                    <p className="text-stone-400 text-xs uppercase tracking-widest mb-4">
+                                        Target Zone
+                                    </p>
+                                    <div 
+                                        className="w-32 h-32 rounded-full bg-gradient-to-br from-stone-900 to-black border-2 border-stone-700 shadow-2xl flex items-center justify-center cursor-pointer hover:border-stone-600 transition"
+                                        onClick={throwGrenade}
+                                    >
+                                        <span className="text-4xl">🕳️</span>
+                                    </div>
+                                </div>
+
+                                {explosions.map((exp) => (
+                                    <div
+                                        key={exp.id}
+                                        className="absolute pointer-events-none"
+                                        style={{
+                                            left: `${exp.x}%`,
+                                            top: `${exp.y}%`,
+                                            animation: 'explosion 0.6s ease-out',
+                                        }}
+                                    >
+                                        <div className="text-4xl">💥</div>
+                                    </div>
+                                ))}
+
+                                {gameMessage && (
+                                    <div className="absolute top-4 text-stone-100 text-sm font-medium animate-bounce">
+                                        {gameMessage}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="relative z-10 mt-12 text-center">
+                                <p className="text-stone-400 text-xs uppercase tracking-widest mb-3">
+                                    Grenades Available
+                                </p>
+                                <div className="flex gap-2 justify-center mb-4">
+                                    {Array.from({ length: maxGrenades }).map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className={`w-8 h-8 rounded border transition ${
+                                                i < grenades
+                                                    ? 'bg-red-900 border-red-700'
+                                                    : 'bg-stone-800 border-stone-700'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                                {grenades === 0 && nextRechargeIn > 0 && (
+                                    <p className="text-stone-500 text-xs">
+                                        Recharges in {nextRechargeIn}s
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-stone-900 border-t border-stone-800 p-4">
+                            <div className="max-w-4xl mx-auto">
+                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                    <div className="text-center">
+                                        <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">
+                                            Ore
+                                        </p>
+                                        <p className="text-stone-100 text-xl font-light">
+                                            {resources.ore}
+                                        </p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">
+                                            Crystal
+                                        </p>
+                                        <p className="text-stone-100 text-xl font-light">
+                                            {resources.crystal}
+                                        </p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">
+                                            Gold
+                                        </p>
+                                        <p className="text-stone-100 text-xl font-light">
+                                            {resources.gold}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={sellResources}
+                                    disabled={
+                                        resources.ore === 0 && resources.crystal === 0 && resources.gold === 0
+                                    }
+                                    className="w-full bg-stone-700 hover:bg-stone-600 disabled:bg-stone-800 disabled:text-stone-600 text-stone-100 py-2 px-4 font-medium uppercase tracking-wider text-sm transition"
+                                >
+                                    Sell All
+                                </button>
+                            </div>
+                        </div>
+
+                        <style>{`
+                            @keyframes explosion {
+                                0% {
+                                    opacity: 1;
+                                    transform: scale(0);
+                                }
+                                50% {
+                                    opacity: 1;
+                                    transform: scale(1.5);
+                                }
+                                100% {
+                                    opacity: 0;
+                                    transform: scale(1) translateY(50px);
+                                }
+                            }
+                        `}</style>
+                    </div>
+                );
+            }
+
+            // SHOP SCREEN
+            if (gameState === 'shop') {
+                return (
+                    <div className="w-full h-screen bg-stone-950 flex flex-col">
+                        <div className="bg-stone-900 border-b border-stone-800 p-4 flex items-center gap-4">
+                            <button
+                                onClick={() => setGameState('game')}
+                                className="text-stone-400 hover:text-stone-200 transition"
+                            >
+                                <ChevronLeft size={24} />
+                            </button>
+                            <h2 className="text-stone-100 font-light text-xl">Market</h2>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="max-w-2xl mx-auto space-y-4">
+                                <div className="bg-stone-900 border border-stone-800 p-6">
+                                    <h3 className="text-stone-100 font-medium mb-2">Sell Resources</h3>
+                                    <p className="text-stone-400 text-sm mb-4">
+                                        Ore: ${resources.ore * 10} | Crystal: ${resources.crystal * 50} | Gold: $
+                                        {resources.gold * 200}
+                                    </p>
+                                    <button
+                                        onClick={sellResources}
+                                        disabled={
+                                            resources.ore === 0 &&
+                                            resources.crystal === 0 &&
+                                            resources.gold === 0
+                                        }
+                                        className="w-full bg-stone-700 hover:bg-stone-600 disabled:bg-stone-800 disabled:text-stone-600 text-stone-100 py-2 px-4 font-medium uppercase tracking-wider text-sm transition"
+                                    >
+                                        Execute Sale
+                                    </button>
+                                </div>
+
+                                <p className="text-stone-500 text-xs uppercase tracking-widest text-center mt-8 mb-4">
+                                    Currency Balance: ${coins}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // SKILLS SCREEN
+            if (gameState === 'skills') {
+                return (
+                    <div className="w-full h-screen bg-stone-950 flex flex-col">
+                        <div className="bg-stone-900 border-b border-stone-800 p-4 flex items-center gap-4">
+                            <button
+                                onClick={() => setGameState('game')}
+                                className="text-stone-400 hover:text-stone-200 transition"
+                            >
+                                <ChevronLeft size={24} />
+                            </button>
+                            <h2 className="text-stone-100 font-light text-xl">Upgrade Tree</h2>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="max-w-2xl mx-auto space-y-4">
+                                <div className="bg-stone-900 border border-stone-800 p-6">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div>
+                                            <h3 className="text-stone-100 font-medium">Extraction Boost</h3>
+                                            <p className="text-stone-400 text-sm">
+                                                +{5 + skills.resourceBoost * 5} ore, +{3 + skills.resourceBoost * 3} crystal, +
+                                                {1 + skills.resourceBoost * 1} gold per throw
+                                            </p>
+                                        </div>
+                                        <p className="text-stone-300 font-light">
+                                            Lvl {skills.resourceBoost}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => purchaseSkill('resourceBoost')}
+                                        disabled={coins < skillPrices.resourceBoost}
+                                        className="w-full bg-stone-700 hover:bg-stone-600 disabled:bg-stone-800 disabled:text-stone-600 text-stone-100 py-2 px-4 font-medium text-sm transition mt-4"
+                                    >
+                                        ${skillPrices.resourceBoost}
+                                    </button>
+                                </div>
+
+                                <div className="bg-stone-900 border border-stone-800 p-6">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div>
+                                            <h3 className="text-stone-100 font-medium">Recharge Protocol</h3>
+                                            <p className="text-stone-400 text-sm">
+                                                Grenades recharge {maxRechargeTime}s apart
+                                            </p>
+                                        </div>
+                                        <p className="text-stone-300 font-light">
+                                            Lvl {skills.rechargeSpeed}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => purchaseSkill('rechargeSpeed')}
+                                        disabled={coins < skillPrices.rechargeSpeed}
+                                        className="w-full bg-stone-700 hover:bg-stone-600 disabled:bg-stone-800 disabled:text-stone-600 text-stone-100 py-2 px-4 font-medium text-sm transition mt-4"
+                                    >
+                                        ${skillPrices.rechargeSpeed}
+                                    </button>
+                                </div>
+
+                                <div className="bg-stone-900 border border-stone-800 p-6">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div>
+                                            <h3 className="text-stone-100 font-medium">Munitions Upgrade</h3>
+                                            <p className="text-stone-400 text-sm">
+                                                +1 grenade capacity ({maxGrenades} total)
+                                            </p>
+                                        </div>
+                                        <p className="text-stone-300 font-light">
+                                            Lvl {skills.grenadeCapacity}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => purchaseSkill('grenadeCapacity')}
+                                        disabled={coins < skillPrices.grenadeCapacity}
+                                        className="w-full bg-stone-700 hover:bg-stone-600 disabled:bg-stone-800 disabled:text-stone-600 text-stone-100 py-2 px-4 font-medium text-sm transition mt-4"
+                                    >
+                                        ${skillPrices.grenadeCapacity}
+                                    </button>
+                                </div>
+
+                                <div className="bg-stone-900 border border-stone-800 p-6">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div>
+                                            <h3 className="text-stone-100 font-medium">Amplification Matrix</h3>
+                                            <p className="text-stone-400 text-sm">
+                                                +{(skills.multiplier * 20).toFixed(0)}% resources per throw
+                                            </p>
+                                        </div>
+                                        <p className="text-stone-300 font-light">
+                                            Lvl {skills.multiplier}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => purchaseSkill('multiplier')}
+                                        disabled={coins < skillPrices.multiplier}
+                                        className="w-full bg-stone-700 hover:bg-stone-600 disabled:bg-stone-800 disabled:text-stone-600 text-stone-100 py-2 px-4 font-medium text-sm transition mt-4"
+                                    >
+                                        ${skillPrices.multiplier}
+                                    </button>
+                                </div>
+
+                                <p className="text-stone-500 text-xs uppercase tracking-widest text-center mt-8">
+                                    Balance: ${coins}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+        }
+
+        ReactDOM.render(<CaveMinerGame />, document.getElementById('root'));
+    </script>
+</body>
+</html>
