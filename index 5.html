@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Game - Skill Tree</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        input, button { -webkit-user-select: text; user-select: text; }
+        
+        @keyframes bookOpen {
+            0% {
+                opacity: 0;
+                transform: perspective(1200px) rotateY(90deg) scale(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: perspective(1200px) rotateY(0deg) scale(1);
+            }
+        }
+        
+        @keyframes pageSlide {
+            0% { transform: translateX(-20px); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+        
+        .book-open {
+            animation: bookOpen 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        
+        .skill-card {
+            animation: pageSlide 0.5s ease-out forwards;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Lucide icons inline
+        const ChevronRight = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        );
+
+        const X = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        );
+
+        function ClickGame() {
+            const [points, setPoints] = useState(0);
+            const [skillTreeOpen, setSkillTreeOpen] = useState(false);
+            const [purchasedSkills, setPurchasedSkills] = useState(new Set());
+            const [clickValue, setClickValue] = useState(1);
+            const [autoClickRate, setAutoClickRate] = useState(0);
+
+            useEffect(() => {
+                if (autoClickRate === 0) return;
+                const interval = setInterval(() => {
+                    setPoints(p => p + autoClickRate);
+                }, 1000);
+                return () => clearInterval(interval);
+            }, [autoClickRate]);
+
+            const handleClick = () => {
+                setPoints(p => p + clickValue);
+            };
+
+            const skillTree = [
+                {
+                    id: 'click1',
+                    name: 'Enhanced Strike',
+                    tier: 1,
+                    cost: 100,
+                    effect: '+1 Click Value',
+                    action: () => {
+                        setClickValue(v => v + 1);
+                        setPurchasedSkills(s => new Set([...s, 'click1']));
+                        setPoints(p => p - 100);
+                    }
+                },
+                {
+                    id: 'click2',
+                    name: 'Power Blow',
+                    tier: 1,
+                    cost: 250,
+                    effect: '+3 Click Value',
+                    requires: 'click1',
+                    action: () => {
+                        setClickValue(v => v + 3);
+                        setPurchasedSkills(s => new Set([...s, 'click2']));
+                        setPoints(p => p - 250);
+                    }
+                },
+                {
+                    id: 'click3',
+                    name: 'Resonance',
+                    tier: 1,
+                    cost: 500,
+                    effect: '+5 Click Value',
+                    requires: 'click2',
+                    action: () => {
+                        setClickValue(v => v + 5);
+                        setPurchasedSkills(s => new Set([...s, 'click3']));
+                        setPoints(p => p - 500);
+                    }
+                },
+                {
+                    id: 'auto1',
+                    name: 'Idle Energy',
+                    tier: 2,
+                    cost: 150,
+                    effect: '+0.5 Points/sec',
+                    action: () => {
+                        setAutoClickRate(r => r + 0.5);
+                        setPurchasedSkills(s => new Set([...s, 'auto1']));
+                        setPoints(p => p - 150);
+                    }
+                },
+                {
+                    id: 'auto2',
+                    name: 'Momentum',
+                    tier: 2,
+                    cost: 350,
+                    effect: '+2 Points/sec',
+                    requires: 'auto1',
+                    action: () => {
+                        setAutoClickRate(r => r + 2);
+                        setPurchasedSkills(s => new Set([...s, 'auto2']));
+                        setPoints(p => p - 350);
+                    }
+                },
+                {
+                    id: 'auto3',
+                    name: 'Cascade',
+                    tier: 2,
+                    cost: 1000,
+                    effect: '+5 Points/sec',
+                    requires: 'auto2',
+                    action: () => {
+                        setAutoClickRate(r => r + 5);
+                        setPurchasedSkills(s => new Set([...s, 'auto3']));
+                        setPoints(p => p - 1000);
+                    }
+                },
+                {
+                    id: 'multi1',
+                    name: 'Amplify',
+                    tier: 3,
+                    cost: 500,
+                    effect: '+10% All Gains',
+                    requires: 'click2',
+                    action: () => {
+                        setClickValue(v => Math.floor(v * 1.1));
+                        setAutoClickRate(r => r * 1.1);
+                        setPurchasedSkills(s => new Set([...s, 'multi1']));
+                        setPoints(p => p - 500);
+                    }
+                },
+                {
+                    id: 'multi2',
+                    name: 'Overload',
+                    tier: 3,
+                    cost: 2000,
+                    effect: 'x2 All Gains',
+                    requires: 'multi1',
+                    action: () => {
+                        setClickValue(v => v * 2);
+                        setAutoClickRate(r => r * 2);
+                        setPurchasedSkills(s => new Set([...s, 'multi2']));
+                        setPoints(p => p - 2000);
+                    }
+                }
+            ];
+
+            const canPurchase = (skill) => {
+                if (purchasedSkills.has(skill.id)) return false;
+                if (points < skill.cost) return false;
+                if (skill.requires && !purchasedSkills.has(skill.requires)) return false;
+                return true;
+            };
+
+            const isPurchased = (skillId) => purchasedSkills.has(skillId);
+
+            const handleSkillClick = (skill) => {
+                if (canPurchase(skill)) {
+                    skill.action();
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white font-sans overflow-hidden">
+                    {/* Background effect */}
+                    <div className="fixed inset-0 opacity-30">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(100,200,255,0.1),transparent_50%)]"></div>
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(200,100,255,0.1),transparent_50%)]"></div>
+                    </div>
+
+                    {/* Main Game Container */}
+                    <div className="relative z-10 h-screen flex flex-col items-center justify-center px-4">
+                        {/* Points Display */}
+                        <div className="mb-12 text-center">
+                            <div className="text-sm uppercase tracking-widest text-slate-400 mb-3 font-light">Current Points</div>
+                            <div className="text-7xl font-light tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-slate-100 to-slate-300">
+                                {Math.floor(points)}
+                            </div>
+                            <div className="mt-4 text-xs text-slate-500">
+                                +{clickValue.toFixed(1)} per click • +{autoClickRate.toFixed(1)}/sec
+                            </div>
+                        </div>
+
+                        {/* Main Click Button */}
+                        <button
+                            onClick={handleClick}
+                            className="mb-16 group relative active:scale-95 transition-transform"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-transparent rounded-2xl blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <div className="relative px-12 py-8 bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl hover:border-slate-600 transition-all duration-200 cursor-pointer shadow-2xl">
+                                <span className="text-2xl font-light tracking-wide">GENERATE</span>
+                            </div>
+                        </button>
+
+                        {/* Skill Tree Button */}
+                        <button
+                            onClick={() => setSkillTreeOpen(true)}
+                            className="flex items-center gap-3 px-6 py-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-slate-500 hover:bg-slate-800/70 transition-all duration-200 text-sm uppercase tracking-widest font-light"
+                        >
+                            <span>Skill Tree</span>
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+
+                    {/* Skill Tree Modal with Book Animation */}
+                    {skillTreeOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                            <div className="relative w-full max-w-5xl max-h-[90vh]">
+                                {/* Book opening animation container */}
+                                <div className="relative w-full h-full book-open">
+                                    {/* Book spine effect */}
+                                    <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-slate-950 via-slate-800 to-slate-950 transform -translate-x-1/2 shadow-lg pointer-events-none"></div>
+
+                                    {/* Content container */}
+                                    <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-lg border border-slate-700 shadow-2xl overflow-hidden">
+                                        {/* Close button */}
+                                        <button
+                                            onClick={() => setSkillTreeOpen(false)}
+                                            className="absolute top-6 right-6 z-10 p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                                        >
+                                            <X size={20} />
+                                        </button>
+
+                                        {/* Header */}
+                                        <div className="border-b border-slate-700 px-8 py-8 bg-gradient-to-r from-slate-800/50 to-transparent">
+                                            <h2 className="text-3xl font-light tracking-wider mb-2">SKILL TREE</h2>
+                                            <p className="text-sm text-slate-400">Progress through tiers to unlock powerful enhancements</p>
+                                        </div>
+
+                                        {/* Skills Grid */}
+                                        <div className="p-8 overflow-y-auto max-h-[calc(90vh-180px)]">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                                {/* Tier 1: Click Power */}
+                                                <div className="space-y-4">
+                                                    <div className="text-xs uppercase tracking-widest text-slate-400 font-light">TIER 1</div>
+                                                    <div className="text-lg font-light text-slate-200 mb-6">Click Power</div>
+                                                    <div className="space-y-4">
+                                                        {skillTree.filter(s => s.tier === 1).map((skill, idx) => (
+                                                            <button
+                                                                key={skill.id}
+                                                                onClick={() => handleSkillClick(skill)}
+                                                                disabled={!canPurchase(skill)}
+                                                                style={{ animationDelay: `${idx * 0.1}s` }}
+                                                                className="skill-card w-full group"
+                                                            >
+                                                                <div className={`p-4 rounded-lg border transition-all duration-200 ${
+                                                                    isPurchased(skill.id)
+                                                                        ? 'bg-slate-700/30 border-slate-600 opacity-50 cursor-default'
+                                                                        : canPurchase(skill)
+                                                                        ? 'bg-slate-800/60 border-slate-600 hover:border-slate-500 hover:bg-slate-800/80 cursor-pointer'
+                                                                        : 'bg-slate-800/30 border-slate-700 opacity-50 cursor-not-allowed'
+                                                                }`}>
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <div>
+                                                                            <h3 className="text-sm font-light tracking-wide text-left">{skill.name}</h3>
+                                                                        </div>
+                                                                        {isPurchased(skill.id) && (
+                                                                            <span className="text-xs text-cyan-400 font-light">✓</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-xs text-slate-400 mb-3 text-left">{skill.effect}</p>
+                                                                    <div className="text-xs text-slate-500 text-left">
+                                                                        {isPurchased(skill.id) ? 'Purchased' : `${skill.cost} points`}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Tier 2: Automation */}
+                                                <div className="space-y-4">
+                                                    <div className="text-xs uppercase tracking-widest text-slate-400 font-light">TIER 2</div>
+                                                    <div className="text-lg font-light text-slate-200 mb-6">Automation</div>
+                                                    <div className="space-y-4">
+                                                        {skillTree.filter(s => s.tier === 2).map((skill, idx) => (
+                                                            <button
+                                                                key={skill.id}
+                                                                onClick={() => handleSkillClick(skill)}
+                                                                disabled={!canPurchase(skill)}
+                                                                style={{ animationDelay: `${idx * 0.1 + 0.3}s` }}
+                                                                className="skill-card w-full group"
+                                                            >
+                                                                <div className={`p-4 rounded-lg border transition-all duration-200 ${
+                                                                    isPurchased(skill.id)
+                                                                        ? 'bg-slate-700/30 border-slate-600 opacity-50 cursor-default'
+                                                                        : canPurchase(skill)
+                                                                        ? 'bg-slate-800/60 border-slate-600 hover:border-slate-500 hover:bg-slate-800/80 cursor-pointer'
+                                                                        : 'bg-slate-800/30 border-slate-700 opacity-50 cursor-not-allowed'
+                                                                }`}>
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <div>
+                                                                            <h3 className="text-sm font-light tracking-wide text-left">{skill.name}</h3>
+                                                                        </div>
+                                                                        {isPurchased(skill.id) && (
+                                                                            <span className="text-xs text-cyan-400 font-light">✓</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-xs text-slate-400 mb-3 text-left">{skill.effect}</p>
+                                                                    <div className="text-xs text-slate-500 text-left">
+                                                                        {isPurchased(skill.id) ? 'Purchased' : `${skill.cost} points`}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Tier 3: Multipliers */}
+                                                <div className="space-y-4">
+                                                    <div className="text-xs uppercase tracking-widest text-slate-400 font-light">TIER 3</div>
+                                                    <div className="text-lg font-light text-slate-200 mb-6">Multipliers</div>
+                                                    <div className="space-y-4">
+                                                        {skillTree.filter(s => s.tier === 3).map((skill, idx) => (
+                                                            <button
+                                                                key={skill.id}
+                                                                onClick={() => handleSkillClick(skill)}
+                                                                disabled={!canPurchase(skill)}
+                                                                style={{ animationDelay: `${idx * 0.1 + 0.6}s` }}
+                                                                className="skill-card w-full group"
+                                                            >
+                                                                <div className={`p-4 rounded-lg border transition-all duration-200 ${
+                                                                    isPurchased(skill.id)
+                                                                        ? 'bg-slate-700/30 border-slate-600 opacity-50 cursor-default'
+                                                                        : canPurchase(skill)
+                                                                        ? 'bg-slate-800/60 border-slate-600 hover:border-slate-500 hover:bg-slate-800/80 cursor-pointer'
+                                                                        : 'bg-slate-800/30 border-slate-700 opacity-50 cursor-not-allowed'
+                                                                }`}>
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <div>
+                                                                            <h3 className="text-sm font-light tracking-wide text-left">{skill.name}</h3>
+                                                                        </div>
+                                                                        {isPurchased(skill.id) && (
+                                                                            <span className="text-xs text-cyan-400 font-light">✓</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-xs text-slate-400 mb-3 text-left">{skill.effect}</p>
+                                                                    <div className="text-xs text-slate-500 text-left">
+                                                                        {isPurchased(skill.id) ? 'Purchased' : `${skill.cost} points`}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ClickGame />);
+    </script>
+</body>
+</html>
