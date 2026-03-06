@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>❄️ Snow Shovel Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --night: #0a1628;
+  --snow: #e8f4f8;
+  --ice: #4ec9ff;
+  --gold: #ffcc44;
+  --warm: #ff9944;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { width:100%; height:100%; overflow:hidden; background:#0a1628; touch-action:none; user-select:none; -webkit-user-select:none; }
+
+#gameCanvas { position:fixed; top:0; left:0; width:100%; height:100%; cursor:none; }
+
+/* ── HUD ── */
+#hud {
+  position:fixed; top:0; left:0; right:0; height:72px;
+  display:flex; align-items:center; justify-content:space-around;
+  padding:0 16px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.55),transparent);
+  pointer-events:none; z-index:10;
+}
+.hud-block { display:flex; flex-direction:column; align-items:center; min-width:90px; }
+.hud-label { font-family:'Nunito',sans-serif; font-size:9px; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; color:rgba(255,255,255,.45); }
+.hud-val { font-family:'Fredoka One',cursive; font-size:30px; color:#fff; text-shadow:0 0 18px rgba(78,201,255,.9); line-height:1; }
+.hud-val.gold { color:var(--gold); text-shadow:0 0 18px rgba(255,204,68,.9); }
+
+/* ── Progress ── */
+#progWrap {
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+  width:min(460px,72vw); z-index:10; pointer-events:none;
+}
+#progLabel { font-family:'Nunito',sans-serif; font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:rgba(255,255,255,.5); text-align:center; margin-bottom:7px; }
+#progBar { width:100%; height:9px; background:rgba(255,255,255,.12); border-radius:5px; overflow:hidden; }
+#progFill { height:100%; width:0%; background:linear-gradient(90deg,#4ec9ff,#a0f0ff); border-radius:5px; transition:width .08s; box-shadow:0 0 12px rgba(78,201,255,.7); }
+
+/* ── Skill Button ── */
+#skillBtn {
+  position:fixed; bottom:26px; right:18px;
+  background:linear-gradient(135deg,#132550,#0d1b3e);
+  border:2px solid rgba(78,201,255,.35); border-radius:18px;
+  padding:11px 20px; cursor:pointer; z-index:10;
+  display:flex; align-items:center; gap:8px; transition:all .18s;
+}
+#skillBtn:active { transform:scale(.94); }
+.sbIcon { font-size:20px; }
+.sbText { font-family:'Fredoka One',cursive; font-size:17px; color:var(--ice); }
+.sbPts { font-family:'Fredoka One',cursive; font-size:13px; color:var(--gold); background:rgba(255,204,68,.12); border-radius:8px; padding:2px 8px; }
+
+/* ── Combo ── */
+#combo {
+  position:fixed; top:84px; left:50%; transform:translateX(-50%);
+  font-family:'Fredoka One',cursive; font-size:20px; color:var(--gold);
+  text-shadow:0 0 18px rgba(255,204,68,.9);
+  pointer-events:none; z-index:10; opacity:0; transition:opacity .3s;
+}
+#combo.on { opacity:1; }
+
+/* ── Skill Panel ── */
+#skillPanel {
+  position:fixed; inset:0; background:rgba(0,0,0,.82);
+  backdrop-filter:blur(12px); z-index:100;
+  display:none; align-items:center; justify-content:center; flex-direction:column;
+}
+#skillPanel.open { display:flex; }
+#skillInner {
+  background:linear-gradient(145deg,#0c1e3e,#162c54);
+  border:2px solid rgba(78,201,255,.28); border-radius:26px;
+  padding:30px; width:min(680px,94vw); max-height:88vh; overflow-y:auto; position:relative;
+}
+#skillTitle { font-family:'Fredoka One',cursive; font-size:30px; color:#fff; text-align:center; margin-bottom:4px; }
+#skillSubPts { font-family:'Nunito',sans-serif; font-size:14px; color:var(--gold); text-align:center; margin-bottom:22px; }
+.sg { display:grid; grid-template-columns:repeat(3,1fr); gap:11px; }
+.sc {
+  background:rgba(255,255,255,.04); border:2px solid rgba(255,255,255,.08);
+  border-radius:16px; padding:14px; cursor:default; transition:all .18s; position:relative;
+}
+.sc.avail { border-color:rgba(78,201,255,.45); cursor:pointer; }
+.sc.avail:hover { background:rgba(78,201,255,.09); border-color:var(--ice); }
+.sc.avail:active { transform:scale(.96); }
+.sc.owned { border-color:rgba(78,201,255,.7); background:rgba(78,201,255,.08); }
+.sc.locked { opacity:.38; }
+.sci { font-size:26px; margin-bottom:7px; }
+.scn { font-family:'Fredoka One',cursive; font-size:15px; color:#fff; margin-bottom:3px; }
+.scd { font-family:'Nunito',sans-serif; font-size:10px; color:rgba(255,255,255,.5); line-height:1.4; margin-bottom:9px; }
+.scc { font-family:'Fredoka One',cursive; font-size:12px; color:var(--gold); }
+.scbadge { position:absolute; top:8px; right:9px; font-size:13px; }
+#closeSkill {
+  position:absolute; top:14px; right:14px;
+  background:rgba(255,255,255,.08); border:none; border-radius:50%;
+  width:34px; height:34px; font-size:17px; color:#fff; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ── Level Complete ── */
+#levelComplete {
+  position:fixed; inset:0; background:rgba(0,0,0,.75);
+  z-index:50; display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px;
+}
+#levelComplete.show { display:flex; }
+#lcTitle { font-family:'Fredoka One',cursive; font-size:52px; color:#fff; text-shadow:0 0 35px rgba(78,201,255,1); animation:pop .5s cubic-bezier(.175,.885,.32,1.275); }
+#lcBonus { font-family:'Fredoka One',cursive; font-size:26px; color:var(--gold); }
+#lcSp { font-family:'Nunito',sans-serif; font-size:17px; color:var(--ice); }
+#lcNext {
+  margin-top:8px;
+  background:linear-gradient(135deg,var(--ice),#2a9fd6); border:none; border-radius:18px;
+  padding:16px 44px; font-family:'Fredoka One',cursive; font-size:22px; color:#fff;
+  cursor:pointer; box-shadow:0 6px 32px rgba(78,201,255,.45); transition:transform .14s;
+}
+#lcNext:active { transform:scale(.96); }
+@keyframes pop { from{transform:scale(.2);opacity:0} to{transform:scale(1);opacity:1} }
+
+/* ── Start Screen ── */
+#start {
+  position:fixed; inset:0; z-index:200;
+  background:radial-gradient(ellipse at 50% 30%,#142a5c 0%,#070f22 70%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+  overflow:hidden;
+}
+#start .sfsContainer { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.ssf { position:absolute; animation:sfFall linear infinite; }
+@keyframes sfFall { from{transform:translateY(-60px) rotate(0deg);opacity:.8} to{transform:translateY(105vh) rotate(360deg);opacity:0} }
+#startTitle { font-family:'Fredoka One',cursive; font-size:clamp(44px,9vw,76px); color:#fff; text-align:center; text-shadow:0 0 50px rgba(78,201,255,.8); line-height:1.05; z-index:1; }
+.pencilAnim { font-size:44px; animation:pfloat 2s ease-in-out infinite; z-index:1; }
+@keyframes pfloat { 0%,100%{transform:translateY(0) rotate(-18deg)} 50%{transform:translateY(-12px) rotate(-18deg)} }
+#startSub { font-family:'Nunito',sans-serif; font-size:15px; color:rgba(255,255,255,.55); text-align:center; line-height:1.6; z-index:1; max-width:380px; }
+#startBtn {
+  background:linear-gradient(135deg,var(--ice),#2a9fd6); border:none; border-radius:22px;
+  padding:18px 52px; font-family:'Fredoka One',cursive; font-size:26px; color:#fff;
+  cursor:pointer; box-shadow:0 8px 44px rgba(78,201,255,.55); transition:transform .15s; z-index:1;
+}
+#startBtn:active { transform:scale(.96); }
+.levelBadge {
+  position:fixed; top:80px; left:50%; transform:translateX(-50%);
+  font-family:'Fredoka One',cursive; font-size:14px; color:rgba(255,255,255,.5);
+  pointer-events:none; z-index:10; letter-spacing:1px;
+}
+</style>
+</head>
+<body>
+
+<!-- Start Screen -->
+<div id="start">
+  <div class="sfsContainer" id="sfsContainer"></div>
+  <div class="pencilAnim">✏️</div>
+  <div id="startTitle">Snow Shovel<br>Pro ❄️</div>
+  <div id="startSub">Use your Apple Pencil (or finger) to shovel snow.<br>Clear each area, earn points, unlock upgrades!</div>
+  <button id="startBtn">⛏️ Start Shoveling!</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-block">
+    <div class="hud-label">Score</div>
+    <div class="hud-val" id="hudScore">0</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-label">Level</div>
+    <div class="hud-val" id="hudLevel">1</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-label">Cleared</div>
+    <div class="hud-val gold" id="hudCleared">0%</div>
+  </div>
+</div>
+<div id="combo">🔥 ×2 COMBO!</div>
+<div id="progWrap">
+  <div id="progLabel">Clear the driveway!</div>
+  <div id="progBar"><div id="progFill"></div></div>
+</div>
+<button id="skillBtn">
+  <span class="sbIcon">🌲</span>
+  <span class="sbText">Skills</span>
+  <span class="sbPts" id="sbPts">0</span>
+</button>
+
+<!-- Skill Panel -->
+<div id="skillPanel">
+  <div id="skillInner">
+    <button id="closeSkill">✕</button>
+    <div id="skillTitle">🌲 Skill Tree</div>
+    <div id="skillSubPts">Skill Points: <span id="spCount">0</span></div>
+    <div class="sg" id="skillGrid"></div>
+  </div>
+</div>
+
+<!-- Level Complete -->
+<div id="levelComplete">
+  <div id="lcTitle">⭐ Area Cleared!</div>
+  <div id="lcBonus"></div>
+  <div id="lcSp"></div>
+  <button id="lcNext">Next Area →</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  SNOW SHOVEL PRO  —  Main Game Script
+// ═══════════════════════════════════════════
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// ── Skills data ──────────────────────────────
+const SKILLS = [
+  { id:'wide_blade',   name:'Wide Blade',    icon:'⛏️',  desc:'+50% shovel radius. Clear more per stroke.',    cost:2, prereqs:[], owned:false },
+  { id:'quick_hand',   name:'Quick Hand',    icon:'⚡',  desc:'Smoother interpolation. No missed spots.',       cost:2, prereqs:[], owned:false },
+  { id:'sparkle',      name:'Sparkle Touch', icon:'✨',  desc:'+30% points per cell cleared.',                  cost:2, prereqs:[], owned:false },
+  { id:'heavy_duty',   name:'Heavy Duty',    icon:'🔨',  desc:'+80% shovel radius. Serious equipment!',         cost:4, prereqs:['wide_blade'], owned:false },
+  { id:'combo_king',   name:'Combo King',    icon:'🔥',  desc:'Combos last 3× longer. Stack the multiplier!',  cost:3, prereqs:['quick_hand'], owned:false },
+  { id:'scatter',      name:'Snow Scatter',  icon:'💥',  desc:'3× more particles + 10pt scatter bonus.',       cost:3, prereqs:['sparkle'], owned:false },
+  { id:'snowblower',   name:'Snow Blower',   icon:'🌀',  desc:'Enormous clear radius. Maximum power!',          cost:6, prereqs:['heavy_duty','combo_king'], owned:false },
+  { id:'pro_finish',   name:'Pro Finish',    icon:'🏆',  desc:'+1 200 bonus when you clear 100%!',              cost:5, prereqs:['combo_king','scatter'], owned:false },
+  { id:'legendary',    name:'Legendary',     icon:'👑',  desc:'2× ALL point earnings. True mastery.',           cost:10, prereqs:['snowblower','pro_finish'], owned:false },
+];
+const hs = id => SKILLS.find(s=>s.id===id)?.owned;
+
+function skillFx() {
+  let r = 22, sm = 1, cd = 1800, pm = 1;
+  if (hs('wide_blade'))  r  += 11;
+  if (hs('heavy_duty'))  r  += 18;
+  if (hs('snowblower'))  r  += 32;
+  if (hs('sparkle'))     sm += .30;
+  if (hs('legendary'))   sm *= 2;
+  if (hs('combo_king'))  cd  = 5400;
+  if (hs('scatter'))     pm  = 3;
+  return { r, sm, cd, pm };
+}
+
+// ── State ────────────────────────────────────
+const G = {
+  score:0, sp:0, level:1,
+  totalCells:0, clearedCells:0,
+  combo:1, comboTimer:0, comboActive:false,
+  playing:false, shoveling:false,
+  pressure:1, lastShovelT:0,
+  prevX:null, prevY:null,
+  levelDone:false, levelStartT:0,
+};
+
+// ── Canvas & resize ───────────────────────────
+let W, H;
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  if (G.playing) initLevel();
+}
+window.addEventListener('resize', resize);
+W = canvas.width  = window.innerWidth;
+H = canvas.height = window.innerHeight;
+
+// ── Snow grid ─────────────────────────────────
+const CELL = 5;
+let cols, rows, grid, snowCvs, sCtx, bgCvs, bCtx;
+
+const TOP_MARGIN    = 78;
+const BOTTOM_MARGIN = 110;
+
+function seedRng(s) {
+  let x = s;
+  return () => { x = (x * 1664525 + 1013904223) & 0xffffffff; return (x >>> 0) / 0xffffffff; };
+}
+
+function initLevel() {
+  G.clearedCells = 0;
+  G.levelDone    = false;
+  G.combo        = 1;
+  G.comboActive  = false;
+  G.lastShovelT  = 0;
+  G.levelStartT  = Date.now();
+  particles.length = 0;
+  popups.length    = 0;
+  flakes.length    = 0;
+
+  cols = Math.ceil(W / CELL);
+  rows = Math.ceil(H / CELL);
+  grid = new Uint8Array(cols * rows); // 0=playable snow, 1=cleared, 2=obstacle, 3=out-of-bounds
+
+  // Out-of-bounds zones
+  for (let r=0; r<rows; r++) {
+    for (let c=0; c<cols; c++) {
+      const py = r*CELL;
+      if (py < TOP_MARGIN || py > H - BOTTOM_MARGIN)
+        grid[r*cols+c] = 3;
+    }
+  }
+
+  // Obstacles by level
+  getObstacles().forEach(o => {
+    const c0=Math.floor(o.x/CELL), r0=Math.floor(o.y/CELL);
+    const c1=Math.ceil((o.x+o.w)/CELL), r1=Math.ceil((o.y+o.h)/CELL);
+    for (let r=r0; r<r1; r++) for (let c=c0; c<c1; c++) {
+      if (r>=0&&r<rows&&c>=0&&c<cols) grid[r*cols+c]=2;
+    }
+  });
+
+  G.totalCells = 0;
+  for (let i=0;i<grid.length;i++) if (grid[i]===0) G.totalCells++;
+
+  buildBgCanvas();
+  buildSnowCanvas();
+  initFlakes();
+  updateHUD();
+
+  const labels = ['Clear the driveway!','Clear the parking area!','Clear all the paths!','Mega storm clearing!'];
+  document.getElementById('progLabel').textContent = labels[Math.min(G.level-1,3)];
+}
+
+function getObstacles() {
+  const obs = [];
+  if (G.level < 2) return obs;
+  const rng = seedRng(G.level * 31337);
+  const count = 2 + G.level;
+  for (let i=0; i<count; i++) {
+    obs.push({
+      x: W*(0.05 + rng()*0.80),
+      y: H*(0.20 + rng()*0.50),
+      w: W*(0.12 + rng()*0.15),
+      h: H*(0.10 + rng()*0.14),
+    });
+  }
+  return obs;
+}
+
+// ── Background canvas (pre-rendered) ─────────
+function buildBgCanvas() {
+  bgCvs = document.createElement('canvas');
+  bgCvs.width = W; bgCvs.height = H;
+  bCtx = bgCvs.getContext('2d');
+  const c = bCtx;
+
+  // Sky
+  const sky = c.createLinearGradient(0,0,0,H*.42);
+  sky.addColorStop(0,'#040c1a');
+  sky.addColorStop(1,'#0c2040');
+  c.fillStyle = sky;
+  c.fillRect(0,0,W,H);
+
+  // Stars (fixed positions per frame)
+  for (let i=0;i<90;i++) {
+    const sx=(i*137+73)%W, sy=(i*97+11)%(H*.38);
+    const br = .3+((i*17)%10)*.06;
+    c.fillStyle = `rgba(255,255,255,${br})`;
+    c.fillRect(sx,sy,i%4===0?2:1,i%4===0?2:1);
+  }
+
+  // Moon
+  const moonX=W*.83, moonY=H*.07;
+  const mg = c.createRadialGradient(moonX,moonY,0,moonX,moonY,55);
+  mg.addColorStop(0,'rgba(255,250,228,.18)');
+  mg.addColorStop(1,'transparent');
+  c.fillStyle=mg; c.fillRect(0,0,W,H);
+  c.fillStyle='rgba(255,250,228,.88)';
+  c.beginPath(); c.arc(moonX,moonY,28,0,Math.PI*2); c.fill();
+
+  // Trees
+  function tree(x,y,h) {
+    c.fillStyle='#060e1a';
+    c.fillRect(x-3,y+h*.7,6,h*.3);
+    for (let l=0;l<3;l++) {
+      const lw=h*(.55-l*.1);
+      c.beginPath();
+      c.moveTo(x,y+h*l*.28);
+      c.lineTo(x+lw,y+h*(l*.28+.36));
+      c.lineTo(x-lw,y+h*(l*.28+.36));
+      c.closePath(); c.fill();
+    }
+    c.fillStyle='rgba(200,228,244,.45)';
+    c.beginPath(); c.ellipse(x,y+h*.04,h*.22,h*.09,0,0,Math.PI*2); c.fill();
+  }
+  tree(W*.04,H*.1,60); tree(W*.11,H*.08,80); tree(W*.87,H*.09,70); tree(W*.94,H*.07,85);
+
+  // House
+  const hx=W*.5-100, hy=H*.04;
+  c.fillStyle='#07101e';
+  c.fillRect(hx,hy+42,200,80);
+  c.beginPath(); c.moveTo(hx-18,hy+42); c.lineTo(hx+100,hy-8); c.lineTo(hx+218,hy+42); c.closePath(); c.fill();
+  [[hx+18,hy+56],[hx+80,hy+56],[hx+144,hy+56]].forEach(([wx,wy])=>{
+    const gw=c.createRadialGradient(wx+15,wy+15,1,wx+15,wy+15,35);
+    gw.addColorStop(0,'rgba(255,170,40,.55)'); gw.addColorStop(1,'transparent');
+    c.fillStyle=gw; c.fillRect(wx-12,wy-12,55,55);
+    c.fillStyle='#ff9933'; c.fillRect(wx,wy,30,26);
+    c.fillStyle='rgba(255,220,100,.5)'; c.fillRect(wx+2,wy+2,12,10);
+  });
+
+  // Ground
+  const grd = c.createLinearGradient(0,H*.16,0,H);
+  grd.addColorStop(0,'#1a2535'); grd.addColorStop(.5,'#131c2b'); grd.addColorStop(1,'#0d1520');
+  c.fillStyle=grd; c.fillRect(0,H*.16,W,H);
+
+  // Asphalt cracks
+  c.strokeStyle='rgba(0,0,0,.25)'; c.lineWidth=1;
+  const crng = seedRng(42);
+  for (let i=0;i<18;i++) {
+    const cx=crng()*W, cy=H*.2+crng()*(H*.7);
+    c.beginPath(); c.moveTo(cx,cy);
+    c.lineTo(cx+crng()*80-40,cy+crng()*40-20); c.stroke();
+  }
+}
+
+// ── Snow canvas ───────────────────────────────
+function buildSnowCanvas() {
+  snowCvs = document.createElement('canvas');
+  snowCvs.width=W; snowCvs.height=H;
+  sCtx = snowCvs.getContext('2d');
+  const c = sCtx;
+  const rng = seedRng(G.level*7+11);
+
+  for (let r=0;r<rows;r++) {
+    for (let co=0;co<cols;co++) {
+      const v=grid[r*cols+co];
+      if (v===1||v===3) continue; // cleared or OOB = transparent
+      const x=co*CELL, y=r*CELL;
+
+      if (v===2) {
+        // obstacle — draw car/tree marker
+        const gr=c.createLinearGradient(x,y,x,y+CELL);
+        gr.addColorStop(0,'#283545'); gr.addColorStop(1,'#1b2535');
+        c.fillStyle=gr; c.fillRect(x,y,CELL,CELL);
+      } else {
+        // snow
+        const n = Math.sin(co*.41+r*.73)*.5+Math.cos(co*.29+r*.53)*.5;
+        const br = 225+Math.floor(n*18);
+        const bl = 245+Math.floor(n*8);
+        c.fillStyle=`rgb(${br},${br+5},${bl})`;
+        c.fillRect(x,y,CELL,CELL);
+        // sparkle
+        if ((co*7+r*13)%37===0) {
+          c.fillStyle='rgba(255,255,255,.85)';
+          c.fillRect(x+1,y+1,2,2);
+        }
+      }
+    }
+  }
+}
+
+// ── Shovel ────────────────────────────────────
+function shovelAt(x,y,pr=1) {
+  const fx=skillFx();
+  const radius=fx.r*Math.max(.5,Math.min(2.2,pr));
+  const cr=Math.ceil(radius/CELL);
+  const cx=Math.floor(x/CELL), cy=Math.floor(y/CELL);
+  let newly=0;
+
+  for (let dr=-cr;dr<=cr;dr++) {
+    for (let dc=-cr;dc<=cr;dc++) {
+      const r=cy+dr, co=cx+dc;
+      if (r<0||r>=rows||co<0||co>=cols) continue;
+      if (Math.sqrt(dr*dr+dc*dc)*CELL>radius) continue;
+      const idx=r*cols+co;
+      if (grid[idx]===0) {
+        grid[idx]=1; newly++; G.clearedCells++;
+        // Erase from snow canvas
+        sCtx.clearRect(co*CELL,r*CELL,CELL,CELL);
+      }
+    }
+  }
+
+  if (newly>0) {
+    const now=Date.now();
+    if (now-G.lastShovelT<fx.cd) {
+      G.combo=Math.min(8,G.combo+.12);
+      G.comboActive=G.combo>=2;
+    } else {
+      G.combo=1; G.comboActive=false;
+    }
+    G.lastShovelT=now;
+
+    const cm=G.comboActive?Math.floor(G.combo):1;
+    const pts=Math.floor(newly*10*cm*fx.sm);
+    G.score+=pts;
+
+    spawnParticles(x,y,Math.min(10,newly)*fx.pm);
+    if (hs('scatter')) G.score+=10;
+    spawnPopup(x,y,`+${pts}`,G.comboActive?'#ffcc44':'#a0eeff');
+    updateHUD();
+  }
+  return newly;
+}
+
+// ── Particles & popups ───────────────────────
+let particles=[], popups=[], flakes=[];
+
+function spawnParticles(x,y,n) {
+  for (let i=0;i<n;i++) {
+    const a=Math.random()*Math.PI*2, sp=2+Math.random()*6;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-3,life:1,sz:2+Math.random()*5,gold:false});
+  }
+}
+function spawnGold(x,y,n) {
+  for (let i=0;i<n;i++) {
+    const a=Math.random()*Math.PI*2, sp=3+Math.random()*9;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-6,life:1,sz:3+Math.random()*6,gold:true});
+  }
+}
+function spawnPopup(x,y,txt,color) {
+  popups.push({x,y,txt,color,life:1,vy:-2.2});
+}
+function initFlakes() {
+  for (let i=0;i<55;i++) flakes.push({
+    x:Math.random()*W, y:Math.random()*H,
+    sz:.8+Math.random()*2.6, sp:.4+Math.random()*1.4,
+    dr:(Math.random()-.5)*.5, op:.25+Math.random()*.55, wb:Math.random()*6.28
+  });
+}
+
+// ── Shovel visual ─────────────────────────────
+let pX=0, pY=0, shovelAngle=0, curPr=1;
+
+function drawShovel(x,y,pr) {
+  const fx=skillFx();
+  const r=fx.r*Math.max(.5,Math.min(2.2,pr));
+  ctx.save(); ctx.translate(x,y); ctx.rotate(shovelAngle);
+
+  // Radius ring
+  ctx.strokeStyle='rgba(78,201,255,.22)';
+  ctx.lineWidth=2; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Blade
+  const blade=ctx.createLinearGradient(-r,0,r,0);
+  blade.addColorStop(0,'#8cb8c8'); blade.addColorStop(.5,'#c8dde6'); blade.addColorStop(1,'#8cb8c8');
+  ctx.fillStyle=blade;
+  ctx.beginPath();
+  const bw=r*1.4, bh=14;
+  ctx.moveTo(-bw/2+6,-bh/2); ctx.lineTo(bw/2-6,-bh/2);
+  ctx.quadraticCurveTo(bw/2,0,bw/2-6,bh/2);
+  ctx.lineTo(-bw/2+6,bh/2); ctx.quadraticCurveTo(-bw/2,0,-bw/2+6,-bh/2);
+  ctx.fill();
+  ctx.strokeStyle='#6a9aaa'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Shine on blade
+  ctx.fillStyle='rgba(255,255,255,.4)';
+  ctx.fillRect(-bw*.4,-bh*.3,bw*.8,bh*.28);
+
+  // Handle
+  ctx.strokeStyle='#7a5510'; ctx.lineWidth=7; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,bh/2); ctx.lineTo(0,58); ctx.stroke();
+  ctx.strokeStyle='#a07020'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(0,bh/2); ctx.lineTo(0,58); ctx.stroke();
+  // Grip
+  ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=1.5;
+  for (let i=0;i<5;i++) {
+    ctx.beginPath(); ctx.moveTo(-5,20+i*7); ctx.lineTo(5,20+i*7); ctx.stroke();
+  }
+
+  // Pressure ring
+  if (pr>1.05) {
+    ctx.strokeStyle=`rgba(78,201,255,${(pr-1)*.65})`;
+    ctx.lineWidth=3; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(0,0,r*1.2,0,Math.PI*2); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ── Update loop ───────────────────────────────
+function update() {
+  if (!G.playing) return;
+
+  // Snowflakes
+  flakes.forEach(f=>{
+    f.y+=f.sp; f.x+=f.dr+Math.sin(f.wb)*.3; f.wb+=.018;
+    if (f.y>H) { f.y=-10; f.x=Math.random()*W; }
+  });
+
+  // Particles
+  particles=particles.filter(p=>p.life>0.02);
+  particles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=.18; p.vx*=.94;
+    p.life-=.022; p.sz*=.97;
+  });
+
+  // Popups
+  popups=popups.filter(p=>p.life>0);
+  popups.forEach(p=>{ p.y+=p.vy; p.life-=.018; });
+
+  // Combo decay
+  const now=Date.now();
+  const fx=skillFx();
+  if (now-G.lastShovelT>fx.cd) {
+    G.combo=Math.max(1,G.combo-.04);
+    if (G.combo<1.4) { G.comboActive=false; G.combo=1; }
+  }
+  const cEl=document.getElementById('combo');
+  if (G.comboActive) { cEl.className='on'; cEl.textContent=`🔥 ×${Math.floor(G.combo)} COMBO!`; }
+  else cEl.className='';
+
+  // Progress
+  const pct=G.totalCells>0?G.clearedCells/G.totalCells:0;
+  document.getElementById('progFill').style.width=(pct*100)+'%';
+  document.getElementById('hudCleared').textContent=Math.round(pct*100)+'%';
+
+  if (pct>=.93 && !G.levelDone) doLevelComplete();
+}
+
+// ── Render frame ──────────────────────────────
+function render() {
+  if (!G.playing) return;
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.drawImage(bgCvs,0,0);
+
+  // Snow layer
+  ctx.drawImage(snowCvs,0,0);
+
+  // Obstacle overlays (labels/visuals)
+  drawObstacleOverlays();
+
+  // Edge vignette
+  const vig=ctx.createRadialGradient(W/2,H/2,H*.15,W/2,H/2,H*.82);
+  vig.addColorStop(0,'transparent'); vig.addColorStop(1,'rgba(4,12,28,.45)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+
+  // Snowflakes
+  flakes.forEach(f=>{
+    ctx.globalAlpha=f.op;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(f.x,f.y,f.sz,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Particles
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.gold?'#ffcc44':'#d8eef8';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.sz*p.life,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Score popups
+  ctx.textAlign='center';
+  popups.forEach(p=>{
+    ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.color;
+    ctx.font=`${17+Math.floor((1-p.life)*9)}px 'Fredoka One', cursive`;
+    ctx.shadowBlur=8; ctx.shadowColor=p.color;
+    ctx.fillText(p.txt,p.x,p.y);
+    ctx.shadowBlur=0;
+  });
+  ctx.globalAlpha=1;
+
+  // Shovel
+  drawShovel(pX,pY,curPr);
+}
+
+function drawObstacleOverlays() {
+  const obs=getObstacles();
+  obs.forEach(o=>{
+    const r=6;
+    ctx.save();
+    // Drop shadow
+    ctx.shadowBlur=18; ctx.shadowColor='rgba(0,0,0,.7)';
+    // Body
+    const bg=ctx.createLinearGradient(o.x,o.y,o.x,o.y+o.h);
+    bg.addColorStop(0,'#253448'); bg.addColorStop(1,'#162235');
+    ctx.fillStyle=bg;
+    ctx.beginPath();
+    ctx.moveTo(o.x+r,o.y); ctx.lineTo(o.x+o.w-r,o.y);
+    ctx.quadraticCurveTo(o.x+o.w,o.y,o.x+o.w,o.y+r);
+    ctx.lineTo(o.x+o.w,o.y+o.h-r);
+    ctx.quadraticCurveTo(o.x+o.w,o.y+o.h,o.x+o.w-r,o.y+o.h);
+    ctx.lineTo(o.x+r,o.y+o.h);
+    ctx.quadraticCurveTo(o.x,o.y+o.h,o.x,o.y+o.h-r);
+    ctx.lineTo(o.x,o.y+r);
+    ctx.quadraticCurveTo(o.x,o.y,o.x+r,o.y);
+    ctx.closePath(); ctx.fill();
+    ctx.shadowBlur=0;
+
+    // "Window" glass
+    ctx.fillStyle='rgba(78,201,255,.12)';
+    ctx.fillRect(o.x+12,o.y+10,o.w-24,o.h*.3);
+    ctx.strokeStyle='rgba(78,201,255,.15)'; ctx.lineWidth=1;
+    ctx.strokeRect(o.x+12,o.y+10,o.w-24,o.h*.3);
+
+    // Snow on top
+    ctx.fillStyle='rgba(220,238,248,.6)';
+    ctx.beginPath();
+    ctx.ellipse(o.x+o.w*.5,o.y+5,o.w*.42,9,0,Math.PI,0);
+    ctx.fill();
+
+    // Label
+    ctx.fillStyle='rgba(255,255,255,.22)';
+    ctx.font=`12px 'Nunito',sans-serif`; ctx.textAlign='center';
+    ctx.fillText('🚗 No shovel zone',o.x+o.w*.5,o.y+o.h*.55+5);
+    ctx.restore();
+  });
+}
+
+// ── Main loop ─────────────────────────────────
+let raf;
+function loop(ts) {
+  update();
+  render();
+  raf=requestAnimationFrame(loop);
+}
+
+// ── Level complete ────────────────────────────
+function doLevelComplete() {
+  G.levelDone=true;
+  const elapsed=(Date.now()-G.levelStartT)/1000;
+  const tb=Math.max(0,Math.floor((150-elapsed)*4));
+  const pb=hs('pro_finish')?1200:0;
+  const lvlB=G.level*250+tb+pb;
+  G.score+=lvlB;
+  const spEarned=G.level+2;
+  G.sp+=spEarned;
+
+  document.getElementById('lcBonus').textContent=`+${lvlB.toLocaleString()} Bonus Points 🎉`;
+  document.getElementById('lcSp').textContent=`+${spEarned} Skill Points earned!`;
+  document.getElementById('levelComplete').classList.add('show');
+
+  // Fireworks
+  for (let i=0;i<100;i++) setTimeout(()=>{
+    spawnGold(W*.3+Math.random()*W*.4, H*.3+Math.random()*H*.3, 4);
+  }, i*30);
+
+  updateHUD();
+}
+
+document.getElementById('lcNext').addEventListener('click',()=>{
+  document.getElementById('levelComplete').classList.remove('show');
+  G.level++; if (G.level>12) G.level=1;
+  document.getElementById('hudLevel').textContent=G.level;
+  initLevel();
+});
+
+// ── HUD ───────────────────────────────────────
+function updateHUD() {
+  document.getElementById('hudScore').textContent=G.score.toLocaleString();
+  document.getElementById('sbPts').textContent=G.sp;
+  document.getElementById('spCount').textContent=G.sp;
+  renderSkillGrid();
+}
+
+// ── Skill tree render ─────────────────────────
+function renderSkillGrid() {
+  const grid2=document.getElementById('skillGrid');
+  grid2.innerHTML='';
+  SKILLS.forEach(sk=>{
+    const met=sk.prereqs.every(p=>hs(p));
+    const afford=G.sp>=sk.cost;
+    const cls=sk.owned?'owned':met&&afford?'avail':'locked';
+    const d=document.createElement('div');
+    d.className='sc '+cls;
+    d.innerHTML=`
+      ${sk.owned?'<div class="scbadge">✅</div>':''}
+      <div class="sci">${sk.icon}</div>
+      <div class="scn">${sk.name}</div>
+      <div class="scd">${sk.desc}</div>
+      ${sk.owned?'<div class="scc" style="color:var(--ice)">Owned ✓</div>':`<div class="scc">🌟 ${sk.cost} pts</div>`}
+      ${!met&&!sk.owned?`<div style="font-size:9px;color:rgba(255,255,255,.25);margin-top:3px">Req: ${sk.prereqs.join(', ')}</div>`:''}
+    `;
+    if (cls==='avail') d.addEventListener('click',()=>buySkill(sk.id));
+    grid2.appendChild(d);
+  });
+}
+
+function buySkill(id) {
+  const sk=SKILLS.find(s=>s.id===id);
+  if (!sk||sk.owned||G.sp<sk.cost) return;
+  sk.owned=true; G.sp-=sk.cost;
+  updateHUD();
+  // Feedback particles
+  spawnGold(W/2,H/2,20);
+}
+
+document.getElementById('skillBtn').addEventListener('click',()=>{
+  document.getElementById('skillPanel').classList.add('open');
+  renderSkillGrid();
+});
+document.getElementById('closeSkill').addEventListener('click',()=>
+  document.getElementById('skillPanel').classList.remove('open'));
+document.getElementById('skillPanel').addEventListener('click',e=>{
+  if(e.target===document.getElementById('skillPanel'))
+    document.getElementById('skillPanel').classList.remove('open');
+});
+
+// ── Pointer input ─────────────────────────────
+function onDown(e) {
+  e.preventDefault();
+  if (document.getElementById('skillPanel').classList.contains('open')) return;
+  G.shoveling=true;
+  curPr=e.pressure>0?e.pressure:.8;
+  pX=e.clientX; pY=e.clientY;
+  G.prevX=e.clientX; G.prevY=e.clientY;
+  shovelAt(e.clientX,e.clientY,curPr);
+}
+function onMove(e) {
+  e.preventDefault();
+  const nx=e.clientX, ny=e.clientY;
+  curPr=e.pressure>0?e.pressure:(G.shoveling?.75:1);
+  const dx=nx-(G.prevX??nx), dy=ny-(G.prevY??ny);
+  if (Math.abs(dx)>1||Math.abs(dy)>1) shovelAngle=Math.atan2(dy,dx);
+  pX=nx; pY=ny;
+
+  if (G.shoveling && G.prevX!=null) {
+    const dist=Math.hypot(dx,dy);
+    const steps=Math.max(1,Math.ceil(dist/6));
+    for (let i=1;i<=steps;i++) {
+      shovelAt(G.prevX+dx*(i/steps), G.prevY+dy*(i/steps), curPr);
+    }
+  }
+  G.prevX=nx; G.prevY=ny;
+}
+function onUp(e) {
+  e.preventDefault();
+  G.shoveling=false; G.prevX=null; G.prevY=null;
+}
+
+canvas.addEventListener('pointerdown',  onDown,  {passive:false});
+canvas.addEventListener('pointermove',  onMove,  {passive:false});
+canvas.addEventListener('pointerup',    onUp,    {passive:false});
+canvas.addEventListener('pointercancel',onUp,    {passive:false});
+canvas.addEventListener('contextmenu',  e=>e.preventDefault());
+document.addEventListener('touchmove',  e=>e.preventDefault(), {passive:false});
+
+// ── Start screen snowflakes ───────────────────
+const sfc=document.getElementById('sfsContainer');
+['❄','❄️','✦','⬡','*'].forEach((_,i)=>{
+  for (let j=0;j<4;j++) {
+    const el=document.createElement('div');
+    el.className='ssf';
+    el.textContent=['❄','❄️','✦','⬡','*'][Math.floor(Math.random()*5)];
+    el.style.cssText=`left:${Math.random()*100}%;font-size:${14+Math.random()*22}px;color:rgba(255,255,255,${.2+Math.random()*.4});animation-duration:${4+Math.random()*7}s;animation-delay:${Math.random()*6}s;`;
+    sfc.appendChild(el);
+  }
+});
+
+// ── Start ─────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click',()=>{
+  document.getElementById('start').style.display='none';
+  G.playing=true;
+  resize();
+  requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>
